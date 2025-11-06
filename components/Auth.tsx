@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { User, AuthResponse } from '../types';
 import * as api from '../services/apiService';
+import { API_BASE_URL } from '../services/apiService';
 
 declare global {
     interface Window { google?: any }
@@ -76,24 +77,47 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
     const renderGoogleButton = () => {
         try {
             const clientId = (import.meta as any).env.VITE_GOOGLE_CLIENT_ID;
-            if (!clientId || typeof window === 'undefined' || !window.google) return null;
+            // If the Google JS library is present and we have a clientId, render the official button
+            if (typeof window !== 'undefined' && window.google && clientId) {
+                setTimeout(() => {
+                    try {
+                        window.google.accounts.id.initialize({
+                            client_id: clientId,
+                            callback: (resp: any) => handleGoogleCredential(resp.credential),
+                        });
+                        window.google.accounts.id.renderButton(
+                            document.getElementById('google-signin-button'),
+                            { theme: 'outline', size: 'large' }
+                        );
+                        // Prompt can show a One Tap or hint (non-blocking). Safe to call after render.
+                        try { window.google.accounts.id.prompt(); } catch (_) { /* ignore */ }
+                    } catch (e) {
+                        // ignore render errors in environments without the Google script
+                    }
+                }, 100);
+                return <div id="google-signin-button" className="mx-auto" />;
+            }
 
-            // Render the Google button into a div with id 'google-signin-button'
-            setTimeout(() => {
-                try {
-                    window.google.accounts.id.initialize({
-                        client_id: clientId,
-                        callback: (resp: any) => handleGoogleCredential(resp.credential),
-                    });
-                    window.google.accounts.id.renderButton(
-                        document.getElementById('google-signin-button'),
-                        { theme: 'outline', size: 'large' }
-                    );
-                } catch (e) {
-                    // ignore render errors in environments without the Google script
-                }
-            }, 100);
-            return <div id="google-signin-button" className="mx-auto" />;
+            // Fallback: render a simple link to the server-side OAuth redirect endpoint.
+            // This works even if the Google JS SDK didn't load and avoids relying on XHR.
+            const redirectBase = API_BASE_URL || '';
+            const redirectHref = `${redirectBase.replace(/\/$/, '')}/api/auth/google/redirect`;
+            return (
+                <div className="mx-auto">
+                    <a
+                        href={redirectHref}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-white bg-opacity-5 border border-slate-600 rounded-md text-white hover:bg-opacity-10"
+                    >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                            <path d="M21.6 12.227c0-.733-.066-1.382-.188-1.988H12v3.762h5.48c-.236 1.26-.952 2.33-2.04 3.052v2.54h3.296c1.93-1.777 3.04-4.39 3.04-7.366z" fill="#4285F4"/>
+                            <path d="M12 22c2.7 0 4.97-.9 6.627-2.438l-3.297-2.54c-.916.616-2.09.98-3.33.98-2.557 0-4.722-1.725-5.493-4.04H3.12v2.54C4.77 19.99 8.12 22 12 22z" fill="#34A853"/>
+                            <path d="M6.507 13.96A6.987 6.987 0 0 1 6 12c0-.99.185-1.94.507-2.96V6.5H3.12A10.98 10.98 0 0 0 2 12c0 1.77.36 3.45 1.12 4.98l3.387-3.02z" fill="#FBBC05"/>
+                            <path d="M12 6.5c1.47 0 2.8.5 3.847 1.48l2.872-2.86C16.97 3.68 14.7 3 12 3 8.12 3 4.77 5.01 3.12 7.98l3.387 2.54C7.278 8.225 9.443 6.5 12 6.5z" fill="#EA4335"/>
+                        </svg>
+                        Sign in with Google
+                    </a>
+                </div>
+            );
         } catch (e) {
             return null;
         }

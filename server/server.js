@@ -30,17 +30,28 @@ const allowedOrigins = [
   'http://localhost:3000'           // Other common dev port
 ];
 
+// Allow a DEBUG env switch to permit all origins (useful for diagnosing CORS issues)
+const allowAllOrigins = process.env.ALLOW_ALL_ORIGINS === 'true';
+
+// Log incoming origin header for easier debugging when CORS fails
+app.use((req, res, next) => {
+  console.log('Incoming request origin:', req.headers.origin, '->', req.method, req.url);
+  next();
+});
+
 // CORS configuration to handle preflight requests and specific headers
 const corsOptions = {
-  origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps, REST tools)
-    // or requests from whitelisted origins.
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: allowAllOrigins
+    ? true
+    : (origin, callback) => {
+        // Allow requests with no origin (like mobile apps, REST tools)
+        // or requests from whitelisted origins.
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
   methods: ['GET', 'POST', 'PUT', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,

@@ -19,7 +19,7 @@ const getApiBaseUrl = (): string => {
     return 'https://quizify.duckdns.org';
 };
 
-const API_BASE_URL = getApiBaseUrl();
+export const API_BASE_URL = getApiBaseUrl();
 const TOKEN_KEY = 'authToken';
 
 // --- Token Management ---
