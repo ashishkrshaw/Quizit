@@ -65,17 +65,26 @@ app.use(express.json({ limit: '1mb' })); // Support JSON bodies, limit size for 
 // the request goes through proxies or other intermediaries.
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin && allowedOrigins.includes(origin)) {
+  // Debug log incoming origin for troubleshooting (can be removed later)
+  if (origin) {
+    console.log(`[CORS] Incoming Origin: ${origin} -> ${req.method} ${req.originalUrl}`);
+  }
+
+  // If origin is present, reflect it back so the browser receives Access-Control-Allow-Origin.
+  // This effectively allows requests from any origin but still restricts via credentials
+  // and allowed headers. If you want stricter control, replace this with whitelist checks.
+  if (origin) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    // Allow the methods we support
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,OPTIONS');
   }
+
   // Respond immediately to OPTIONS preflight
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
   }
+
   next();
 });
 
