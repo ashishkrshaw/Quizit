@@ -38,22 +38,6 @@ const App: React.FC = () => {
 
     useEffect(() => {
         const checkUserAuth = async () => {
-            // If a token was passed in the URL hash (e.g., after server-side OAuth redirect), capture it
-            try {
-                const hash = window.location.hash;
-                if (hash && hash.includes('token=')) {
-                    const params = new URLSearchParams(hash.replace(/^#/, ''));
-                    const t = params.get('token');
-                    if (t) {
-                        api.setToken(t);
-                        // remove token from URL
-                        history.replaceState(null, '', window.location.pathname + window.location.search);
-                    }
-                }
-            } catch (e) {
-                // ignore
-            }
-
             const token = api.getToken();
             if (token) {
                 try {
@@ -301,7 +285,7 @@ const App: React.FC = () => {
             <div className="w-full max-w-5xl mx-auto">
                 <header className="text-center mb-8 flex justify-between items-center w-full">
                     <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
-                        Gyaano
+                        Quizyfy
                     </h1>
                      {currentUser && gameState !== GameState.JOIN_SCREEN && (
                         <button onClick={handleLogout} className="bg-slate-700 hover:bg-rose-600/50 text-white font-bold py-2 px-4 rounded-lg transition-colors">

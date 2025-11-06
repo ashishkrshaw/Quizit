@@ -16,10 +16,11 @@ const getApiBaseUrl = (): string => {
         // such as the AI Studio playground or a production build without Vite env vars.
     }
     // For all other cases (production, playgrounds), use the deployed backend URL.
-    return 'https://quizify.duckdns.org';
+    // Deployed backend is at wecord.duckdns.org per deployment.
+    return 'https://wecord.duckdns.org';
 };
 
-export const API_BASE_URL = getApiBaseUrl();
+const API_BASE_URL = getApiBaseUrl();
 const TOKEN_KEY = 'authToken';
 
 // --- Token Management ---
@@ -84,13 +85,6 @@ export const login = async (email: string, password_raw: string): Promise<AuthRe
     });
 };
 
-export const googleSignIn = async (idToken: string): Promise<AuthResponse> => {
-    return apiFetch('/api/auth/google', {
-        method: 'POST',
-        body: JSON.stringify({ idToken }),
-    });
-};
-
 // This function would be called on app load to verify the token and get user data
 export const checkAuth = async (): Promise<User> => {
     return apiFetch('/api/users/me'); // A protected route that returns the current user
@@ -119,12 +113,5 @@ export const saveHistory = async (newEntry: QuizHistory): Promise<void> => {
     await apiFetch('/api/history', {
         method: 'POST',
         body: JSON.stringify(newEntry),
-    });
-};
-
-export const chatAssistant = async (message: string): Promise<{ reply: string }> => {
-    return apiFetch('/api/chat', {
-        method: 'POST',
-        body: JSON.stringify({ message }),
     });
 };

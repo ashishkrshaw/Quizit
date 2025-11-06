@@ -9,6 +9,7 @@ import userRoutes from './routes/userRoutes.js';
 import historyRoutes from './routes/historyRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
 import { initSocket } from './socketHandler.js';
+import { handleGoogleCallback } from './controllers/oauthController.js';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -20,46 +21,34 @@ const app = express();
 const server = http.createServer(app);
 
 // Whitelist of allowed origins for CORS
+// During deployment the frontend will be hosted at https://quizit-1.onrender.com
+// and the backend will be hosted at https://wecord.duckdns.org. Keep localhost
+// entries so local development still works.
 const allowedOrigins = [
-  'https://quizyfy-1.onrender.com', // legacy/previous Production Frontend (kept for compatibility)
-  'https://quizit-1.onrender.com',  // frontend-only deployment (new)
-  'https://quizit-6jve.onrender.com',// backend-only deployment (allow backend-origin requests if needed)
-  'https://quizify.duckdns.org', // new backend public URL
-  'https://wecord.app',             // AI Studio Environment
-  'http://localhost:5173',          // Vite Dev Server
-  'http://localhost:3000'           // Other common dev port
+  'https://quizit-1.onrender.com',   // Deployed Frontend
+  'https://wecord.duckdns.org',      // Deployed Backend (if needed for same-origin checks)
+  'http://localhost:5173',           // Vite Dev Server
+  'http://localhost:3000'            // Other common dev port
 ];
-
-// Allow a DEBUG env switch to permit all origins (useful for diagnosing CORS issues)
-const allowAllOrigins = process.env.ALLOW_ALL_ORIGINS === 'true';
-
-// Log incoming origin header for easier debugging when CORS fails
-app.use((req, res, next) => {
-  console.log('Incoming request origin:', req.headers.origin, '->', req.method, req.url);
-  next();
-});
 
 // CORS configuration to handle preflight requests and specific headers
 const corsOptions = {
-  origin: allowAllOrigins
-    ? true
-    : (origin, callback) => {
-        // Allow requests with no origin (like mobile apps, REST tools)
-        // or requests from whitelisted origins.
-        if (!origin || allowedOrigins.includes(origin)) {
-          callback(null, true);
-        } else {
-          callback(new Error('Not allowed by CORS'));
-        }
-      },
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, REST tools)
+    // or requests from whitelisted origins.
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
 };
 
-// Allow Socket.IO to accept connections from the public URL if provided
 const io = new SocketIOServer(server, {
-  cors: corsOptions
+    cors: corsOptions
 });
 
 // Middleware
@@ -73,6 +62,9 @@ app.use('/api/history', historyRoutes);
 app.use('/api', aiRoutes); // For /quiz/generate and /insights/generate
 
 initSocket(io); // Initialize socket handlers
+
+// OAuth redirect handler (this path should match the authorized redirect URI in Google Console)
+app.get('/login/oauth2/code/google', handleGoogleCallback);
 
 const PORT = process.env.PORT || 5000;
 

@@ -28,7 +28,7 @@ const JoinScreen: React.FC<JoinScreenProps> = ({ onJoin, onCreate, onLoginClick 
 
     return (
         <div className="animate-fade-in text-center max-w-md mx-auto">
-            <h2 className="text-3xl font-bold text-slate-100 mb-2">Welcome to Gyaano!</h2>
+            <h2 className="text-3xl font-bold text-slate-100 mb-2">Welcome to Quizyfy!</h2>
             <p className="text-slate-400 mb-8">Join a room or create your own quiz.</p>
 
             {error && <p className="text-red-400 bg-red-900/50 p-3 rounded-lg mb-4">{error}</p>}

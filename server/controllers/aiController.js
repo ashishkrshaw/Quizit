@@ -2,14 +2,7 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import fetch from 'node-fetch';
 
-// Try multiple environment variable names to be robust across deployments.
-const genaiKey = process.env.GENAI_API_KEY || process.env.GOOGLE_API_KEY || process.env.API_KEY || process.env.GOOGLE_APIKEY;
-if (!genaiKey) {
-    console.warn('Warning: No Google GenAI API key found in env (checked GENAI_API_KEY, GOOGLE_API_KEY, API_KEY). Gemini calls will likely fail unless credentials are provided.');
-}
-const ai = new GoogleGenAI({ apiKey: genaiKey });
-// Optional local fallback toggle. Set LOCAL_FALLBACK=true in server .env to enable deterministic local questions
-const LOCAL_FALLBACK = process.env.LOCAL_FALLBACK === 'true';
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // Helper to reliably extract JSON from a string, even if it's wrapped in a markdown code block.
 const parseJsonFromMarkdown = (text) => {
@@ -23,61 +16,30 @@ const parseJsonFromMarkdown = (text) => {
 const callPerplexityAPI = async (prompt) => {
     console.log("Using Perplexity API as fallback...");
     const url = 'https://api.perplexity.ai/chat/completions';
+    
+    // Corrected the model name.
+    const body = {
+        model: "sonar-large-32k-online",
+        messages: [{ role: "user", content: prompt }],
+    };
 
-    const apiKey = process.env.PERPLEXITY_API_KEY;
-    if (!apiKey) {
-        throw new Error('Perplexity API key not configured. Set PERPLEXITY_API_KEY in environment.');
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${process.env.PERPLEXITY_API_KEY}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Perplexity API Error: ${response.statusText} - ${errorText}`);
     }
 
-    // Try a couple of request shapes. Prefer the request without an explicit model first
-    // because many Perplexity accounts reject custom model names; if that fails, try
-    // including the previously used model string.
-    const candidateBodies = [
-        { messages: [{ role: "user", content: prompt }] },
-        { model: "sonar-large-32k-online", messages: [{ role: "user", content: prompt }] },
-    ];
-
-    let lastError = null;
-    for (const body of candidateBodies) {
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify(body),
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text().catch(() => '<<no body>>');
-                // Surface the status/text but continue to retry next body if available
-                lastError = new Error(`Perplexity API Error: ${response.status} ${response.statusText} - ${errorText}`);
-                // Log the full response text for easier debugging in logs
-                console.warn('Perplexity request failed:', lastError.message);
-                continue;
-            }
-
-            const data = await response.json();
-            // Defensive checks: Perplexity may return different shapes; try to extract text robustly.
-            if (data?.choices?.[0]?.message?.content) {
-                return data.choices[0].message.content;
-            }
-            if (data?.result?.content) {
-                return data.result.content;
-            }
-            // Otherwise return the whole payload as a string for debugging
-            return JSON.stringify(data);
-        } catch (err) {
-            lastError = err;
-            console.warn('Perplexity fetch error:', err && err.message ? err.message : err);
-            continue;
-        }
-    }
-
-    // If we exhausted retries, throw the last error
-    throw lastError || new Error('Perplexity API failed for unknown reasons');
+    const data = await response.json();
+    return data.choices[0].message.content;
 };
 
 // @desc    Generate a quiz
@@ -171,50 +133,8 @@ export const generateQuiz = async (req, res) => {
             res.status(200).json({ questions: parsedQuiz.questions, sources: null });
 
         } catch (fallbackError) {
-            console.error("Fallback API Error:", fallbackError && fallbackError.message ? fallbackError.message : fallbackError);
-            // If the server owner opted into a local fallback, use it; otherwise preserve original behavior and return 500
-            if (!LOCAL_FALLBACK) {
-                return res.status(500).json({ message: "Both AI services failed. Please try again later." });
-            }
-
-            // LOCAL_FALLBACK=true -> generate deterministic local placeholder questions so quiz flow remains functional
-            try {
-                console.warn('Using local fallback generator for quiz due to AI failures.');
-                const rounds = Number(config.rounds) || 5;
-                const mcqOptions = Number(config.mcqOptions) || 4;
-                const source = config.sourceFileContent ? String(config.sourceFileContent) : '';
-
-                // Split source into simple sentences for lightweight question generation
-                const sentences = source ? source.split(/[.?!]\s+/).filter(s => s.trim()) : [];
-
-                const questions = [];
-                for (let i = 0; i < rounds; i++) {
-                    const base = sentences[i] || `${config.topic} - question ${i + 1}`;
-                    const questionText = base.length > 220 ? base.slice(0, 217) + '...' : base;
-                    const correctAnswer = base.split(/\s+/).slice(0, 5).join(' ').replace(/[.?!]$/, '') || `Answer ${i + 1}`;
-
-                    if (config.quizType === 'Multiple Choice') {
-                        const options = [correctAnswer];
-                        // generate simple distractors
-                        for (let j = 1; j < mcqOptions; j++) {
-                            options.push(`${correctAnswer} (${j + 1})`);
-                        }
-                        // shuffle options
-                        for (let k = options.length - 1; k > 0; k--) {
-                            const r = Math.floor(Math.random() * (k + 1));
-                            [options[k], options[r]] = [options[r], options[k]];
-                        }
-                        questions.push({ questionText, correctAnswer, options });
-                    } else {
-                        questions.push({ questionText, correctAnswer });
-                    }
-                }
-
-                return res.status(200).json({ questions, sources: null, fallback: true, message: 'AI services unavailable; returned local fallback questions.' });
-            } catch (localErr) {
-                console.error('Local fallback failed:', localErr && localErr.message ? localErr.message : localErr);
-                return res.status(500).json({ message: 'Both AI services failed and local fallback failed. Please try again later.' });
-            }
+            console.error("Fallback API Error:", fallbackError.message);
+            res.status(500).json({ message: "Both AI services failed. Please try again later." });
         }
     }
 };
@@ -261,37 +181,6 @@ export const generatePersonalInsights = async (req, res) => {
         } catch (fallbackError) {
             console.error("Fallback API Error for Insights:", fallbackError.message);
             res.status(500).json({ message: "Both AI services failed. Please try again later." });
-        }
-    }
-};
-
-// @desc    Chat assistant endpoint (simple conversational helper)
-// @route   POST /api/chat
-// @access  Private
-export const chatAssistant = async (req, res) => {
-    const { message } = req.body;
-    if (!message || typeof message !== 'string') {
-        return res.status(400).json({ message: 'Message text is required' });
-    }
-
-    const prompt = `You are a helpful quiz assistant. Answer concisely and help the user with quiz-related questions. User: ${message}`;
-
-    try {
-        const geminiResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-        });
-
-        const text = geminiResponse.text || '';
-        res.status(200).json({ reply: text });
-    } catch (geminiError) {
-        console.error('Gemini API Error for chat:', geminiError.message);
-        try {
-            const perplexityResult = await callPerplexityAPI(prompt);
-            res.status(200).json({ reply: perplexityResult });
-        } catch (fallbackError) {
-            console.error('Fallback API Error for chat:', fallbackError.message);
-            res.status(500).json({ message: 'AI assistant currently unavailable.' });
         }
     }
 };

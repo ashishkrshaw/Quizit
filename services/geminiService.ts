@@ -12,7 +12,8 @@ const getApiBaseUrl = (): string => {
         // This catch block handles environments where `import.meta.env` is not available.
     }
     // For all other cases (production, playgrounds), use the deployed backend URL.
-    return 'https://quizify.duckdns.org';
+    // Deployed backend is at wecord.duckdns.org per deployment.
+    return 'https://wecord.duckdns.org';
 };
 const API_BASE_URL = getApiBaseUrl();
 

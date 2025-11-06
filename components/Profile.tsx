@@ -21,10 +21,10 @@ const Profile: React.FC<ProfileProps> = ({ user, onSave }) => {
 
     return (
         <div className="animate-fade-in max-w-lg mx-auto">
-            <header className="text-center mb-4">
-                <h2 className="text-2xl font-extrabold mb-1">{user.profession ? 'Your Profile' : 'Complete Your Profile'}</h2>
-                <p className="text-slate-400">Personalize your experience for better insights.</p>
-            </header>
+            <h2 className="text-2xl font-bold text-center mb-2">
+                {user.profession ? 'Your Profile' : 'Welcome! Complete Your Profile'}
+            </h2>
+            <p className="text-slate-400 text-center mb-6">This helps us personalize your AI-powered insights.</p>
 
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
@@ -56,8 +56,8 @@ const Profile: React.FC<ProfileProps> = ({ user, onSave }) => {
                     <textarea id="goals" value={formData.goals} onChange={e => setFormData(prev => ({...prev, goals: e.target.value}))} placeholder="e.g., Prepare for my final exams, Improve my general knowledge" rows={3} className="w-full px-4 py-2 bg-slate-700 border-2 border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" />
                 </div>
 
-                <button type="submit" className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium py-3 px-4 rounded-lg hover:opacity-95 transition-opacity">
-                    Save & Continue
+                <button type="submit" className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity">
+                    Save Profile & Continue
                 </button>
             </form>
         </div>
