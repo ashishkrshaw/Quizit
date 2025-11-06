@@ -1,7 +1,7 @@
 {
-  "name": "quizyfy-server",
+  "name": "gyaano-server",
   "version": "1.0.0",
-  "description": "Backend for Quizyfy",
+  "description": "Backend for Gyaano",
   "main": "server.js",
   "type": "module",
   "scripts": {

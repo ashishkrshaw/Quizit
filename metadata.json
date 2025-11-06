@@ -1,5 +1,5 @@
 {
-  "name": "Quizyfy",
-  "description": "Quizyfy is a real-time quiz application where users can create or join rooms, generate quizzes on various topics using AI, and compete with friends. Features include MCQ and written formats, custom prompts, source document uploads, live scoring, and a discussion chatbox.",
+  "name": "Gyaano",
+  "description": "Gyaano is a real-time quiz application where users can create or join rooms, generate quizzes on various topics using AI, and compete with friends. Features include MCQ and written formats, custom prompts, source document uploads, live scoring, and a discussion chatbox.",
   "requestFramePermissions": []
 }

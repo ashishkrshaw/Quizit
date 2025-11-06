@@ -24,6 +24,7 @@ const allowedOrigins = [
   'https://quizyfy-1.onrender.com', // legacy/previous Production Frontend (kept for compatibility)
   'https://quizit-1.onrender.com',  // frontend-only deployment (new)
   'https://quizit-6jve.onrender.com',// backend-only deployment (allow backend-origin requests if needed)
+  'https://quizify.duckdns.org', // new backend public URL
   'https://wecord.app',             // AI Studio Environment
   'http://localhost:5173',          // Vite Dev Server
   'http://localhost:3000'           // Other common dev port
@@ -45,8 +46,9 @@ const corsOptions = {
   credentials: true,
 };
 
+// Allow Socket.IO to accept connections from the public URL if provided
 const io = new SocketIOServer(server, {
-    cors: corsOptions
+  cors: corsOptions
 });
 
 // Middleware

@@ -220,3 +220,34 @@ export const generatePersonalInsights = async (req, res) => {
         }
     }
 };
+
+// @desc    Chat assistant endpoint (simple conversational helper)
+// @route   POST /api/chat
+// @access  Private
+export const chatAssistant = async (req, res) => {
+    const { message } = req.body;
+    if (!message || typeof message !== 'string') {
+        return res.status(400).json({ message: 'Message text is required' });
+    }
+
+    const prompt = `You are a helpful quiz assistant. Answer concisely and help the user with quiz-related questions. User: ${message}`;
+
+    try {
+        const geminiResponse = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+        });
+
+        const text = geminiResponse.text || '';
+        res.status(200).json({ reply: text });
+    } catch (geminiError) {
+        console.error('Gemini API Error for chat:', geminiError.message);
+        try {
+            const perplexityResult = await callPerplexityAPI(prompt);
+            res.status(200).json({ reply: perplexityResult });
+        } catch (fallbackError) {
+            console.error('Fallback API Error for chat:', fallbackError.message);
+            res.status(500).json({ message: 'AI assistant currently unavailable.' });
+        }
+    }
+};

@@ -3,6 +3,7 @@ import { QuizType, TimerType } from '../types';
 import type { Room, Player, ChatMessage } from '../types';
 import { SendIcon } from './icons';
 import { onNewChatMessage, offNewChatMessage, sendChatMessage } from '../services/socketService';
+import Chatbot from './Chatbot';
 
 interface QuizProps {
     room: Room;
@@ -122,7 +123,16 @@ const Quiz: React.FC<QuizProps> = ({ room, user, onQuizEnd }) => {
                         />
                     )}
                 </div>
-                
+
+                {/* Question navigation: jump to any question */}
+                <div className="mt-6 flex flex-wrap gap-2">
+                    {room.quiz.map((_, idx) => (
+                        <button key={idx} onClick={() => { setCurrentQIndex(idx); if (isPerQuestionTimer) setTimeLeft(room.quizSettings.timerDuration); }} className={`px-3 py-1 rounded ${currentQIndex === idx ? 'bg-purple-600 text-white' : 'bg-slate-700 text-slate-200'}`}>
+                            {idx + 1}
+                        </button>
+                    ))}
+                </div>
+
                 <div className={`mt-8 flex ${isPerQuestionTimer ? 'justify-center' : 'justify-between'} items-center`}>
                     {!isPerQuestionTimer && (
                         <button onClick={() => setCurrentQIndex(i => i - 1)} disabled={currentQIndex === 0} className="px-6 py-2 bg-slate-600 text-white font-bold rounded-lg hover:bg-slate-500 disabled:opacity-50 transition">
@@ -157,6 +167,9 @@ const Quiz: React.FC<QuizProps> = ({ room, user, onQuizEnd }) => {
                             </div>
                         ))}
                      </div>
+                </div>
+                <div>
+                    <Chatbot currentUserName={user.name} />
                 </div>
                 <ChatBox messages={messages} onSendMessage={handleSendMessage} currentUser={user} />
             </div>
