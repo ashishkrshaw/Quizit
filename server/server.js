@@ -21,12 +21,12 @@ const server = http.createServer(app);
 
 // Whitelist of allowed origins for CORS
 const allowedOrigins = [
-    'https://quizyfy-1.onrender.com', // Production Frontend
-                               
-  'https://quizit-1.onrender.com', // New frontend URL provided by user
-    'https://wecord.app',             // AI Studio Environment
-    'http://localhost:5173',          // Vite Dev Server
-    'http://localhost:3000'           // Other common dev port
+  'https://quizyfy-1.onrender.com', // legacy/previous Production Frontend (kept for compatibility)
+  'https://quizit-1.onrender.com',  // frontend-only deployment (new)
+  'https://quizit-6jve.onrender.com',// backend-only deployment (allow backend-origin requests if needed)
+  'https://wecord.app',             // AI Studio Environment
+  'http://localhost:5173',          // Vite Dev Server
+  'http://localhost:3000'           // Other common dev port
 ];
 
 // CORS configuration to handle preflight requests and specific headers

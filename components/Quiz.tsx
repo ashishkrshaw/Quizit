@@ -67,11 +67,6 @@ const Quiz: React.FC<QuizProps> = ({ room, user, onQuizEnd }) => {
         const newAnswers = [...myAnswers];
         newAnswers[currentQIndex] = answer;
         setMyAnswers(newAnswers);
-        // If using per-question timer, reset the timer on manual selection so the user
-        // gets a fresh interval to review the question after choosing.
-        if (isPerQuestionTimer) {
-            setTimeLeft(room.quizSettings.timerDuration);
-        }
     };
 
     const handleSendMessage = (text: string) => {
@@ -84,19 +79,6 @@ const Quiz: React.FC<QuizProps> = ({ room, user, onQuizEnd }) => {
         };
         sendChatMessage(room.id, newMessage);
     };
-
-    // Client-side sanitization as a second line of defense in case the
-    // backend left any stray formatting characters.
-    const sanitizeString = (s: any) => {
-        if (typeof s !== 'string') return s;
-        let out = s.trim();
-        out = out.replace(/<[^>]*>/g, '');
-        out = out.replace(/\*\*|\*|__|_/g, '');
-        out = out.replace(/\s+/g, ' ');
-        return out;
-    };
-
-    const sanitizedOptions: string[] = (currentQuestion.options || []).map((o: string) => sanitizeString(o));
 
     const getTimerDisplay = () => {
         const minutes = Math.floor(timeLeft / 60);
@@ -121,11 +103,11 @@ const Quiz: React.FC<QuizProps> = ({ room, user, onQuizEnd }) => {
                 </div>
                 
                 <div className={`grid ${isMCQ ? 'md:grid-cols-2' : 'grid-cols-1'} gap-4`}>
-                    {isMCQ && sanitizedOptions.map((option, index) => (
+                    {isMCQ && currentQuestion.options?.map((option, index) => (
                          <button 
                              key={index}
                              onClick={() => handleAnswerSelect(option)}
-                             className={`p-4 rounded-lg text-left font-medium transition-colors duration-200 text-lg ${myAnswers[currentQIndex] === option ? 'bg-purple-600 ring-2 ring-purple-400' : 'bg-slate-700 hover:bg-slate-600'}`}
+                             className={`p-4 rounded-lg text-left font-normal transition-colors duration-200 text-lg text-white border-2 ${myAnswers[currentQIndex] === option ? 'bg-slate-700 border-purple-500' : 'bg-slate-800 border-transparent hover:bg-slate-700'}`}
                          >
                             {option}
                         </button>
@@ -141,18 +123,24 @@ const Quiz: React.FC<QuizProps> = ({ room, user, onQuizEnd }) => {
                     )}
                 </div>
                 
-                <div className={`mt-8 flex justify-between items-center`}>
-                    <button onClick={() => { setCurrentQIndex(i => Math.max(0, i - 1)); if (isPerQuestionTimer) setTimeLeft(room.quizSettings.timerDuration); }} disabled={currentQIndex === 0} className="px-6 py-2 bg-slate-600 text-white font-bold rounded-lg hover:bg-slate-500 disabled:opacity-50 transition">
-                        Previous
-                    </button>
+                <div className={`mt-8 flex ${isPerQuestionTimer ? 'justify-center' : 'justify-between'} items-center`}>
+                    {!isPerQuestionTimer && (
+                        <button onClick={() => setCurrentQIndex(i => i - 1)} disabled={currentQIndex === 0} className="px-6 py-2 bg-slate-600 text-white font-bold rounded-lg hover:bg-slate-500 disabled:opacity-50 transition">
+                            Previous
+                        </button>
+                    )}
+                    
+                    {(isLastQuestion || !isPerQuestionTimer) && (
+                        <button onClick={handleSubmit} className="px-8 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white font-bold rounded-lg text-xl hover:opacity-90 transition">
+                            Finish Quiz
+                        </button>
+                    )}
 
-                    <button onClick={handleSubmit} className="px-8 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white font-bold rounded-lg text-xl hover:opacity-90 transition">
-                        Finish Quiz
-                    </button>
-
-                    <button onClick={() => { setCurrentQIndex(i => Math.min(room.quiz.length - 1, i + 1)); if (isPerQuestionTimer) setTimeLeft(room.quizSettings.timerDuration); }} disabled={isLastQuestion} className="px-6 py-2 bg-slate-600 text-white font-bold rounded-lg hover:bg-slate-500 disabled:opacity-50 transition">
-                        Next
-                    </button>
+                    {!isPerQuestionTimer && (
+                         <button onClick={() => setCurrentQIndex(i => i + 1)} disabled={isLastQuestion} className="px-6 py-2 bg-slate-600 text-white font-bold rounded-lg hover:bg-slate-500 disabled:opacity-50 transition">
+                            Next
+                        </button>
+                    )}
                 </div>
             </div>
             

@@ -13,15 +13,14 @@ const parseJsonFromMarkdown = (text) => {
     return text.trim();
 };
 
-// Call Perplexity (preferred / primary if PERPLEXITY_API_KEY is set)
 const callPerplexityAPI = async (prompt) => {
+    console.log("Using Perplexity API as fallback...");
     const url = 'https://api.perplexity.ai/chat/completions';
-    const modelName = process.env.PERPLEXITY_MODEL || 'perplexity-v1';
-    console.log(`Calling Perplexity model=${modelName}...`);
-
+    
+    // Corrected the model name.
     const body = {
-        model: modelName,
-        messages: [{ role: 'user', content: prompt }],
+        model: "sonar-large-32k-online",
+        messages: [{ role: "user", content: prompt }],
     };
 
     const response = await fetch(url, {
@@ -40,8 +39,7 @@ const callPerplexityAPI = async (prompt) => {
     }
 
     const data = await response.json();
-    // Perplexity returns content in choices[0].message.content (matches previous code)
-    return data.choices?.[0]?.message?.content || data.choices?.[0] || '';
+    return data.choices[0].message.content;
 };
 
 // @desc    Generate a quiz
@@ -70,15 +68,7 @@ export const generateQuiz = async (req, res) => {
         prompt += `\nAdditional instructions: "${config.customPrompt}"`;
     }
 
-        prompt += `\nYour response MUST be a single, valid JSON object only. Do not include any text, explanations, or markdown formatting (like \`\`\`json) before or after the JSON object. The required structure is: { "questions": [ { "questionText": "...", "correctAnswer": "...", "options": ["..."] } ] }.`;
-        // Additional strict constraints to avoid formatting tokens and ensure consistency:
-        prompt += `\nRequirements (strict):`;
-        prompt += `\n1) Every question object must include exactly one string field 'questionText', one string field 'correctAnswer', and (for MCQ) an 'options' array of strings.`;
-        prompt += `\n2) The 'correctAnswer' value MUST match exactly one of the strings present in 'options' (case insensitive match is acceptable on the server, but send the exact option text).`;
-        prompt += `\n3) Option strings must be plain text only: do NOT include Markdown, HTML tags, emphasis characters (like '*', '**', '_', '__'), backticks, or parenthetical correctness markers such as '(correct)'.`;
-        prompt += `\n4) Do not add numbering, letters (A., B., etc.) or extra prefixes to options. Return only the option text.`;
-        prompt += `\n5) Trim whitespace inside strings and avoid newline characters inside option strings.`;
-        prompt += `\n6) If you cannot produce the requested number of valid questions from the source, return fewer questions but still a valid JSON object.`;
+    prompt += `\nYour response MUST be a single, valid JSON object only. Do not include any text, explanations, or markdown formatting (like \`\`\`json) before or after the JSON object. The required structure is: { "questions": [ { "questionText": "...", "correctAnswer": "...", "options": ["..."] } ] }.`;
     
     const questionSchema = {
         type: Type.OBJECT,
@@ -114,12 +104,10 @@ export const generateQuiz = async (req, res) => {
 
     try {
         // --- 1. Try Gemini API ---
-        // Note: some runtime environments may not accept the 'config' field
-        // inline; pass only the core fields here. The geminiRequestConfig
-        // will be used by the SDK automatically if supported.
         const geminiResponse = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt,
+            config: geminiRequestConfig,
         });
         
         const groundingMetadata = geminiResponse.candidates?.[0]?.groundingMetadata;
@@ -129,40 +117,7 @@ export const generateQuiz = async (req, res) => {
         const cleanedJsonString = parseJsonFromMarkdown(geminiResponse.text);
         let parsedQuiz = JSON.parse(cleanedJsonString);
 
-        // Sanitize strings coming from the AI to avoid leftover markdown/HTML
-        // or surprising whitespace that can affect UI rendering.
-        const sanitizeString = (s) => {
-            if (typeof s !== 'string') return s;
-            let out = s.trim();
-            // Remove surrounding backticks or quotes
-            out = out.replace(/^\s*[`"']+|[`"']+\s*$/g, '');
-            // Remove HTML tags
-            out = out.replace(/<[^>]*>/g, '');
-            // Remove common markdown emphasis characters (simple heuristic)
-            out = out.replace(/\*\*|\*|__|_/g, '');
-            // Collapse multiple spaces/newlines into single space
-            out = out.replace(/\s+/g, ' ');
-            // Remove trailing markers like (correct) or [correct]
-            out = out.replace(/\(correct\)|\[correct\]/ig, '');
-            // Remove leading labels like 'A. ', '1) ', 'a) '
-            out = out.replace(/^\s*[A-Za-z0-9]+[\.|\)]\s*/, '');
-            return out.trim();
-        };
-
-        const sanitizeQuestion = (q) => {
-            const cleanQ = {
-                questionText: sanitizeString(q.questionText || ''),
-                correctAnswer: sanitizeString(q.correctAnswer || ''),
-            };
-            if (Array.isArray(q.options)) {
-                cleanQ.options = q.options.map(o => sanitizeString(o)).filter(Boolean);
-            }
-            return cleanQ;
-        };
-
-        const safeQuestions = (parsedQuiz.questions || []).map(sanitizeQuestion);
-
-        res.status(200).json({ questions: safeQuestions, sources });
+        res.status(200).json({ questions: parsedQuiz.questions, sources });
 
     } catch (geminiError) {
         console.error("Gemini API Error:", geminiError.message);
@@ -174,32 +129,8 @@ export const generateQuiz = async (req, res) => {
             const cleanedJsonString = parseJsonFromMarkdown(perplexityResult);
             let parsedQuiz = JSON.parse(cleanedJsonString);
 
-            // Sanitize fallback response as well
-            const sanitizeString = (s) => {
-                if (typeof s !== 'string') return s;
-                let out = s.trim();
-                out = out.replace(/^\s*[`"']+|[`"']+\s*$/g, '');
-                out = out.replace(/<[^>]*>/g, '');
-                out = out.replace(/\*\*|\*|__|_/g, '');
-                out = out.replace(/\s+/g, ' ');
-                return out.trim();
-            };
-
-            const sanitizeQuestion = (q) => {
-                const cleanQ = {
-                    questionText: sanitizeString(q.questionText || ''),
-                    correctAnswer: sanitizeString(q.correctAnswer || ''),
-                };
-                if (Array.isArray(q.options)) {
-                    cleanQ.options = q.options.map(o => sanitizeString(o)).filter(Boolean);
-                }
-                return cleanQ;
-            };
-
-            const safeQuestions = (parsedQuiz.questions || []).map(sanitizeQuestion);
-
             // Perplexity doesn't provide grounding sources, so return null
-            res.status(200).json({ questions: safeQuestions, sources: null });
+            res.status(200).json({ questions: parsedQuiz.questions, sources: null });
 
         } catch (fallbackError) {
             console.error("Fallback API Error:", fallbackError.message);

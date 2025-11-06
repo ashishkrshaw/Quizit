@@ -3,20 +3,20 @@ import type { User, QuizHistory, AuthResponse } from '../types';
 // Safely determine the API base URL for different environments.
 const getApiBaseUrl = (): string => {
     try {
-        // Prefer a Vite-provided env var when building for Render or other hosts.
-        const viteUrl = (import.meta as any).env?.VITE_API_BASE_URL;
-        if (viteUrl) return viteUrl;
-
         // In a Vite development environment, `import.meta.env.DEV` is true.
-        // Use a relative path during local dev so the Vite proxy handles /api.
+        // The code will try to access `import.meta.env`. If it's undefined, a TypeError
+        // will be thrown and caught, and the production URL will be returned.
         if ((import.meta as any).env.DEV) {
+            // In local dev, use a relative path. The /api prefix will be handled
+            // by the Vite proxy.
             return '';
         }
     } catch (e) {
-        // Environments without import.meta.env (e.g., some runners) will fall back.
+        // This catch block handles environments where `import.meta.env` is not available,
+        // such as the AI Studio playground or a production build without Vite env vars.
     }
-    // Default to the Render backend URL provided by the user.
-    return 'https://quizit-6jve.onrender.com';
+    // For all other cases (production, playgrounds), use the deployed backend URL.
+    return 'https://quizyfy.onrender.com';
 };
 
 const API_BASE_URL = getApiBaseUrl();

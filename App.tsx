@@ -49,22 +49,6 @@ const App: React.FC = () => {
                     setGameState(GameState.JOIN_SCREEN);
                 }
             }
-            else {
-                // If no token, try to restore a guest user stored in localStorage
-                try {
-                    const stored = localStorage.getItem('currentUser');
-                    if (stored) {
-                        const parsed = JSON.parse(stored);
-                        if (parsed && parsed.id && parsed.isGuest) {
-                            setCurrentUser(parsed);
-                            setGameState(GameState.HOME);
-                        }
-                    }
-                } catch (e) {
-                    // ignore parse errors
-                }
-            }
-
             setIsAppLoading(false);
         };
         checkUserAuth();
@@ -77,14 +61,8 @@ const App: React.FC = () => {
 
         onRoomUpdate((newRoom) => {
             setRoom(newRoom);
-            // Persist current room so a refresh can attempt reconnection
-            try { localStorage.setItem('currentRoomId', newRoom.id); } catch (e) {}
             if (newRoom.status === 'lobby') {
                 setGameState(GameState.LOBBY);
-            } else if (newRoom.status === 'in-progress') {
-                setGameState(GameState.PLAYING);
-            } else if (newRoom.status === 'finished') {
-                setGameState(GameState.RESULTS);
             }
         });
 
@@ -92,15 +70,12 @@ const App: React.FC = () => {
             setRoom(startedRoom);
             setIsWaitingForOthers(false);
             setGameState(GameState.PLAYING);
-            try { localStorage.setItem('currentRoomId', startedRoom.id); } catch (e) {}
         });
         
         onGameEnded((finishedRoom) => {
             setRoom(finishedRoom);
             setIsWaitingForOthers(false);
             setGameState(GameState.RESULTS);
-            // Keep history but clear the active room pointer
-            try { localStorage.removeItem('currentRoomId'); } catch (e) {}
         });
 
         onError((message) => {
@@ -115,23 +90,6 @@ const App: React.FC = () => {
             offAllListeners();
         };
     }, [currentUser, gameState]);
-
-    // Attempt to auto-rejoin any active room stored in localStorage
-    useEffect(() => {
-        const tryRejoin = async () => {
-            if (!currentUser) return;
-            try {
-                const storedRoomId = localStorage.getItem('currentRoomId');
-                if (storedRoomId) {
-                    // try to join existing room (server allows joining in-progress)
-                    joinRoom(storedRoomId, currentUser);
-                }
-            } catch (e) {
-                console.error('Auto-rejoin failed', e);
-            }
-        };
-        tryRejoin();
-    }, [currentUser]);
 
     useEffect(() => {
         const saveUserHistory = async () => {
@@ -167,7 +125,6 @@ const App: React.FC = () => {
             isGuest: true,
         };
         setCurrentUser(guestUser);
-        try { localStorage.setItem('currentUser', JSON.stringify(guestUser)); } catch (e) {}
         setError(null);
         joinRoom(roomId, guestUser);
     }, []);
@@ -179,7 +136,6 @@ const App: React.FC = () => {
             isGuest: true,
         };
         setCurrentUser(guestUser);
-        try { localStorage.setItem('currentUser', JSON.stringify(guestUser)); } catch (e) {}
         setGameState(GameState.CREATING);
     }, []);
 
@@ -187,7 +143,6 @@ const App: React.FC = () => {
         api.setToken(authResponse.token);
         const user = authResponse.user;
         setCurrentUser(user);
-        try { localStorage.setItem('currentUser', JSON.stringify(user)); } catch (e) {}
 
         if (isNewUser || (!user.isGuest && !user.profession)) {
             setGameState(GameState.PROFILE_SETUP);
@@ -200,7 +155,6 @@ const App: React.FC = () => {
         try {
             const savedUser = await api.saveProfile(updatedUser);
             setCurrentUser(savedUser);
-            try { localStorage.setItem('currentUser', JSON.stringify(savedUser)); } catch (e) {}
         } catch (err: any) {
             console.error("Failed to save profile:", err);
             setError(err.message || "Could not save your profile. Please try again.");
@@ -272,7 +226,6 @@ const App: React.FC = () => {
         setError(null);
         setIsWaitingForOthers(false);
         setGameState(GameState.HOME);
-        try { localStorage.removeItem('currentRoomId'); } catch (e) {}
     };
     
     const handleLogout = () => {
@@ -283,7 +236,6 @@ const App: React.FC = () => {
         setError(null);
         setIsWaitingForOthers(false);
         setGameState(GameState.JOIN_SCREEN);
-        try { localStorage.removeItem('currentRoomId'); localStorage.removeItem('currentUser'); } catch (e) {}
     };
 
     const renderGameState = () => {

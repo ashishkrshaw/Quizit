@@ -3,15 +3,16 @@ import type { CreateQuizFormState, Question, QuizHistory, User, GroundingSource 
 // Safely determine the API base URL for different environments.
 const getApiBaseUrl = (): string => {
     try {
-        const viteUrl = (import.meta as any).env?.VITE_API_BASE_URL;
-        if (viteUrl) return viteUrl;
         if ((import.meta as any).env.DEV) {
+            // In local dev, use a relative path. The /api prefix will be handled
+            // by the Vite proxy.
             return '';
         }
     } catch (e) {
-        // ignore
+        // This catch block handles environments where `import.meta.env` is not available.
     }
-    return 'https://quizit-6jve.onrender.com';
+    // For all other cases (production, playgrounds), use the deployed backend URL.
+    return 'https://quizyfy.onrender.com';
 };
 const API_BASE_URL = getApiBaseUrl();
 

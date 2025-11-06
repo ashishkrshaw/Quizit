@@ -24,20 +24,16 @@ let socket: Socket<ServerToClientEvents, ClientToServerEvents> | null = null;
 // Safely determine the Socket.IO server URL for different environments.
 const getSocketUrl = (): string | undefined => {
     try {
-        // Prefer Vite-provided env var for socket URL when available
-        const viteSocket = (import.meta as any).env?.VITE_SOCKET_URL;
-        if (viteSocket) return viteSocket;
-
         // In a Vite development environment, `import.meta.env.DEV` is true.
-        // Return undefined so the client connects to the same host as the page.
         if ((import.meta as any).env.DEV) {
+            // In local dev, connect to the same host so the Vite proxy can handle it.
             return undefined;
         }
     } catch (e) {
-        // Fallback if import.meta.env is not accessible
+        // This catch block handles environments where `import.meta.env` is not available.
     }
-    // Default to the requested Render backend URL
-    return 'https://quizit-6jve.onrender.com';
+    // For all other cases (production, playgrounds), use the deployed backend URL.
+    return 'https://quizyfy.onrender.com';
 };
 
 
