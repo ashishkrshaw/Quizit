@@ -2,7 +2,12 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import fetch from 'node-fetch';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Try multiple environment variable names to be robust across deployments.
+const genaiKey = process.env.GENAI_API_KEY || process.env.GOOGLE_API_KEY || process.env.API_KEY || process.env.GOOGLE_APIKEY;
+if (!genaiKey) {
+    console.warn('Warning: No Google GenAI API key found in env (checked GENAI_API_KEY, GOOGLE_API_KEY, API_KEY). Gemini calls will likely fail unless credentials are provided.');
+}
+const ai = new GoogleGenAI({ apiKey: genaiKey });
 
 // Helper to reliably extract JSON from a string, even if it's wrapped in a markdown code block.
 const parseJsonFromMarkdown = (text) => {
@@ -16,30 +21,61 @@ const parseJsonFromMarkdown = (text) => {
 const callPerplexityAPI = async (prompt) => {
     console.log("Using Perplexity API as fallback...");
     const url = 'https://api.perplexity.ai/chat/completions';
-    
-    // Corrected the model name.
-    const body = {
-        model: "sonar-large-32k-online",
-        messages: [{ role: "user", content: prompt }],
-    };
 
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${process.env.PERPLEXITY_API_KEY}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-        },
-        body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Perplexity API Error: ${response.statusText} - ${errorText}`);
+    const apiKey = process.env.PERPLEXITY_API_KEY;
+    if (!apiKey) {
+        throw new Error('Perplexity API key not configured. Set PERPLEXITY_API_KEY in environment.');
     }
 
-    const data = await response.json();
-    return data.choices[0].message.content;
+    // Try a couple of request shapes. Prefer the request without an explicit model first
+    // because many Perplexity accounts reject custom model names; if that fails, try
+    // including the previously used model string.
+    const candidateBodies = [
+        { messages: [{ role: "user", content: prompt }] },
+        { model: "sonar-large-32k-online", messages: [{ role: "user", content: prompt }] },
+    ];
+
+    let lastError = null;
+    for (const body of candidateBodies) {
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify(body),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text().catch(() => '<<no body>>');
+                // Surface the status/text but continue to retry next body if available
+                lastError = new Error(`Perplexity API Error: ${response.status} ${response.statusText} - ${errorText}`);
+                // Log the full response text for easier debugging in logs
+                console.warn('Perplexity request failed:', lastError.message);
+                continue;
+            }
+
+            const data = await response.json();
+            // Defensive checks: Perplexity may return different shapes; try to extract text robustly.
+            if (data?.choices?.[0]?.message?.content) {
+                return data.choices[0].message.content;
+            }
+            if (data?.result?.content) {
+                return data.result.content;
+            }
+            // Otherwise return the whole payload as a string for debugging
+            return JSON.stringify(data);
+        } catch (err) {
+            lastError = err;
+            console.warn('Perplexity fetch error:', err && err.message ? err.message : err);
+            continue;
+        }
+    }
+
+    // If we exhausted retries, throw the last error
+    throw lastError || new Error('Perplexity API failed for unknown reasons');
 };
 
 // @desc    Generate a quiz
