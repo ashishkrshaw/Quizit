@@ -60,6 +60,25 @@ app.use(cors(corsOptions)); // Use CORS for Express API routes
 app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '1mb' })); // Support JSON bodies, limit size for file uploads
 
+// Additional middleware: explicitly reflect allowed origin headers for requests
+// This helps ensure the Access-Control-Allow-Origin header is present even when
+// the request goes through proxies or other intermediaries.
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    // Allow the methods we support
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,OPTIONS');
+  }
+  // Respond immediately to OPTIONS preflight
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);

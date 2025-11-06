@@ -7,7 +7,21 @@
     <link rel="apple-touch-icon" href="./question.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Quizyfy</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // Load Tailwind CDN only in local/dev environments. Avoid using CDN in production.
+      (function() {
+        try {
+          const host = location.hostname;
+          if (host === 'localhost' || host === '127.0.0.1') {
+            const s = document.createElement('script');
+            s.src = 'https://cdn.tailwindcss.com';
+            document.head.appendChild(s);
+          }
+        } catch (e) {
+          // If anything goes wrong, silently continue — production build should provide CSS.
+        }
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
