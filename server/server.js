@@ -45,6 +45,9 @@ const corsOptions = {
   methods: ['GET', 'POST', 'PUT', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
+  // Ensure preflight requests get a proper 200 response and don't get blocked
+  optionsSuccessStatus: 200,
+  preflightContinue: false,
 };
 
 const io = new SocketIOServer(server, {
@@ -53,6 +56,8 @@ const io = new SocketIOServer(server, {
 
 // Middleware
 app.use(cors(corsOptions)); // Use CORS for Express API routes
+// Explicitly handle OPTIONS preflight for all routes using the same cors options
+app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '1mb' })); // Support JSON bodies, limit size for file uploads
 
 // API Routes
