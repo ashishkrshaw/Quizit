@@ -8,6 +8,8 @@ if (!genaiKey) {
     console.warn('Warning: No Google GenAI API key found in env (checked GENAI_API_KEY, GOOGLE_API_KEY, API_KEY). Gemini calls will likely fail unless credentials are provided.');
 }
 const ai = new GoogleGenAI({ apiKey: genaiKey });
+// Optional local fallback toggle. Set LOCAL_FALLBACK=true in server .env to enable deterministic local questions
+const LOCAL_FALLBACK = process.env.LOCAL_FALLBACK === 'true';
 
 // Helper to reliably extract JSON from a string, even if it's wrapped in a markdown code block.
 const parseJsonFromMarkdown = (text) => {
@@ -169,8 +171,50 @@ export const generateQuiz = async (req, res) => {
             res.status(200).json({ questions: parsedQuiz.questions, sources: null });
 
         } catch (fallbackError) {
-            console.error("Fallback API Error:", fallbackError.message);
-            res.status(500).json({ message: "Both AI services failed. Please try again later." });
+            console.error("Fallback API Error:", fallbackError && fallbackError.message ? fallbackError.message : fallbackError);
+            // If the server owner opted into a local fallback, use it; otherwise preserve original behavior and return 500
+            if (!LOCAL_FALLBACK) {
+                return res.status(500).json({ message: "Both AI services failed. Please try again later." });
+            }
+
+            // LOCAL_FALLBACK=true -> generate deterministic local placeholder questions so quiz flow remains functional
+            try {
+                console.warn('Using local fallback generator for quiz due to AI failures.');
+                const rounds = Number(config.rounds) || 5;
+                const mcqOptions = Number(config.mcqOptions) || 4;
+                const source = config.sourceFileContent ? String(config.sourceFileContent) : '';
+
+                // Split source into simple sentences for lightweight question generation
+                const sentences = source ? source.split(/[.?!]\s+/).filter(s => s.trim()) : [];
+
+                const questions = [];
+                for (let i = 0; i < rounds; i++) {
+                    const base = sentences[i] || `${config.topic} - question ${i + 1}`;
+                    const questionText = base.length > 220 ? base.slice(0, 217) + '...' : base;
+                    const correctAnswer = base.split(/\s+/).slice(0, 5).join(' ').replace(/[.?!]$/, '') || `Answer ${i + 1}`;
+
+                    if (config.quizType === 'Multiple Choice') {
+                        const options = [correctAnswer];
+                        // generate simple distractors
+                        for (let j = 1; j < mcqOptions; j++) {
+                            options.push(`${correctAnswer} (${j + 1})`);
+                        }
+                        // shuffle options
+                        for (let k = options.length - 1; k > 0; k--) {
+                            const r = Math.floor(Math.random() * (k + 1));
+                            [options[k], options[r]] = [options[r], options[k]];
+                        }
+                        questions.push({ questionText, correctAnswer, options });
+                    } else {
+                        questions.push({ questionText, correctAnswer });
+                    }
+                }
+
+                return res.status(200).json({ questions, sources: null, fallback: true, message: 'AI services unavailable; returned local fallback questions.' });
+            } catch (localErr) {
+                console.error('Local fallback failed:', localErr && localErr.message ? localErr.message : localErr);
+                return res.status(500).json({ message: 'Both AI services failed and local fallback failed. Please try again later.' });
+            }
         }
     }
 };
