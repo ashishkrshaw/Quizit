@@ -9,7 +9,6 @@ import userRoutes from './routes/userRoutes.js';
 import historyRoutes from './routes/historyRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
 import { initSocket } from './socketHandler.js';
-import { handleGoogleCallback } from './controllers/oauthController.js';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -21,14 +20,13 @@ const app = express();
 const server = http.createServer(app);
 
 // Whitelist of allowed origins for CORS
-// During deployment the frontend will be hosted at https://quizit-1.onrender.com
-// and the backend will be hosted at https://wecord.duckdns.org. Keep localhost
-// entries so local development still works.
 const allowedOrigins = [
-  'https://quizit-1.onrender.com',   // Deployed Frontend
-  'https://wecord.duckdns.org',      // Deployed Backend (if needed for same-origin checks)
-  'http://localhost:5173',           // Vite Dev Server
-  'http://localhost:3000'            // Other common dev port
+  'https://quizyfy-1.onrender.com', // legacy/previous Production Frontend (kept for compatibility)
+  'https://quizit-1.onrender.com',  // frontend-only deployment (new)
+  'https://quizit-6jve.onrender.com',// backend-only deployment (allow backend-origin requests if needed)
+  'https://wecord.app',             // AI Studio Environment
+  'http://localhost:5173',          // Vite Dev Server
+  'http://localhost:3000'           // Other common dev port
 ];
 
 // CORS configuration to handle preflight requests and specific headers
@@ -45,9 +43,6 @@ const corsOptions = {
   methods: ['GET', 'POST', 'PUT', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
-  // Ensure preflight requests get a proper 200 response and don't get blocked
-  optionsSuccessStatus: 200,
-  preflightContinue: false,
 };
 
 const io = new SocketIOServer(server, {
@@ -56,37 +51,7 @@ const io = new SocketIOServer(server, {
 
 // Middleware
 app.use(cors(corsOptions)); // Use CORS for Express API routes
-// Explicitly handle OPTIONS preflight for all routes using the same cors options
-app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '1mb' })); // Support JSON bodies, limit size for file uploads
-
-// Additional middleware: explicitly reflect allowed origin headers for requests
-// This helps ensure the Access-Control-Allow-Origin header is present even when
-// the request goes through proxies or other intermediaries.
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  // Debug log incoming origin for troubleshooting (can be removed later)
-  if (origin) {
-    console.log(`[CORS] Incoming Origin: ${origin} -> ${req.method} ${req.originalUrl}`);
-  }
-
-  // If origin is present, reflect it back so the browser receives Access-Control-Allow-Origin.
-  // This effectively allows requests from any origin but still restricts via credentials
-  // and allowed headers. If you want stricter control, replace this with whitelist checks.
-  if (origin) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,OPTIONS');
-  }
-
-  // Respond immediately to OPTIONS preflight
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-
-  next();
-});
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -95,9 +60,6 @@ app.use('/api/history', historyRoutes);
 app.use('/api', aiRoutes); // For /quiz/generate and /insights/generate
 
 initSocket(io); // Initialize socket handlers
-
-// OAuth redirect handler (this path should match the authorized redirect URI in Google Console)
-app.get('/login/oauth2/code/google', handleGoogleCallback);
 
 const PORT = process.env.PORT || 5000;
 

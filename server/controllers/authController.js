@@ -3,7 +3,7 @@ import bcrypt from 'bcrypt';
 import User from '../models/User.js';
 
 // Generate JWT
-export const generateToken = (id) => {
+const generateToken = (id) => {
     return jwt.sign({ id }, process.env.JWT_SECRET, {
         expiresIn: '30d',
     });

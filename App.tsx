@@ -38,20 +38,6 @@ const App: React.FC = () => {
 
     useEffect(() => {
         const checkUserAuth = async () => {
-            // If redirected from OAuth with ?token=, capture and store it, then remove from URL
-            try {
-                const params = new URLSearchParams(window.location.search);
-                const urlToken = params.get('token');
-                if (urlToken) {
-                    api.setToken(urlToken);
-                    // remove token from URL without reloading
-                    params.delete('token');
-                    const newUrl = window.location.pathname + (params.toString() ? `?${params.toString()}` : '');
-                    window.history.replaceState({}, document.title, newUrl);
-                }
-            } catch (e) {
-                // ignore URL parsing errors
-            }
             const token = api.getToken();
             if (token) {
                 try {

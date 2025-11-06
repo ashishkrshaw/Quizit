@@ -12,8 +12,7 @@ const getApiBaseUrl = (): string => {
         // This catch block handles environments where `import.meta.env` is not available.
     }
     // For all other cases (production, playgrounds), use the deployed backend URL.
-    // Deployed backend is at wecord.duckdns.org per deployment.
-    return 'https://wecord.duckdns.org';
+    return 'https://quizit-6jve.onrender.com';
 };
 const API_BASE_URL = getApiBaseUrl();
 
