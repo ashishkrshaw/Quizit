@@ -16,7 +16,7 @@ const getApiBaseUrl = (): string => {
         // such as the AI Studio playground or a production build without Vite env vars.
     }
     // For all other cases (production, playgrounds), use the deployed backend URL.
-    return 'https://quizyfy.onrender.com';
+    return 'https://quizit-6jve.onrender.com';
 };
 
 const API_BASE_URL = getApiBaseUrl();

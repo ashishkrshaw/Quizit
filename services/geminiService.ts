@@ -12,7 +12,7 @@ const getApiBaseUrl = (): string => {
         // This catch block handles environments where `import.meta.env` is not available.
     }
     // For all other cases (production, playgrounds), use the deployed backend URL.
-    return 'https://quizyfy.onrender.com';
+    return 'https://quizit-6jve.onrender.com';
 };
 const API_BASE_URL = getApiBaseUrl();
 
