@@ -14,7 +14,7 @@ const generateToken = (id) => {
 // @access  Public
 export const signupUser = async (req, res) => {
     const { name, email, password } = req.body;
-
+    const start = Date.now();
     if (!name || !email || !password) {
         return res.status(400).json({ message: 'Please add all fields' });
     }
@@ -45,8 +45,10 @@ export const signupUser = async (req, res) => {
             token: generateToken(user._id),
             user: userResponse,
         });
+        console.log(`[AUTH] signupUser completed in ${Date.now() - start}ms for email=${email}`);
     } catch (error) {
         console.error(error);
+        console.log(`[AUTH] signupUser error after ${Date.now() - start}ms for email=${email}`);
         res.status(500).json({ message: 'Server error during signup' });
     }
 };
@@ -56,7 +58,7 @@ export const signupUser = async (req, res) => {
 // @access  Public
 export const loginUser = async (req, res) => {
     const { email, password } = req.body;
-
+    const start = Date.now();
     if (!email || !password) {
         return res.status(400).json({ message: 'Please provide email and password' });
     }
@@ -79,11 +81,14 @@ export const loginUser = async (req, res) => {
                 token: generateToken(user._id),
                 user: userResponse,
             });
+            console.log(`[AUTH] loginUser successful in ${Date.now() - start}ms for email=${email}`);
         } else {
+            console.log(`[AUTH] loginUser failed in ${Date.now() - start}ms for email=${email}`);
             res.status(400).json({ message: 'Invalid credentials' });
         }
     } catch (error) {
         console.error(error);
+        console.log(`[AUTH] loginUser error after ${Date.now() - start}ms for email=${email}`);
         res.status(500).json({ message: 'Server error during login' });
     }
 };

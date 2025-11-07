@@ -31,6 +31,8 @@ export const handleGoogleCallback = async (req, res) => {
         return res.status(400).send('No code provided');
     }
 
+    const start = Date.now();
+
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
     const redirectUri = process.env.GOOGLE_REDIRECT_URI;
@@ -100,10 +102,12 @@ export const handleGoogleCallback = async (req, res) => {
 
         // Send user to frontend with token in query string (frontend should capture it and store)
         const redirectTo = `${frontendUrl}/?token=${jwtToken}`;
+        console.log(`[OAUTH] handleGoogleCallback completed in ${Date.now() - start}ms for email=${email}`);
         return res.redirect(302, redirectTo);
 
     } catch (err) {
         console.error('OAuth callback error:', err);
+        console.log(`[OAUTH] handleGoogleCallback error after ${Date.now() - start}ms`);
         return res.status(500).send('Internal server error during OAuth callback');
     }
 };
